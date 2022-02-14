@@ -11,5 +11,8 @@ COPY files/* /var/www/html/
 # Expose port 80/tcp
 EXPOSE 80
 
+# Switch to User 1001
+USER 1001
+
 # Start httpd
 CMD ["httpd", "-DFOREGROUND"]
