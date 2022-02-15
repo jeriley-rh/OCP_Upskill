@@ -1,0 +1,39 @@
+#These are the steps and files I used to deploy k8s 1.23 in the video. Please modify k8s/calico.yaml and k8s/metallb-deploy.yaml to match your pod-network-cidr
+
+#Install crio v1.22
+OS=xUbuntu_20.04
+CRIO_VERSION=1.22
+echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /"|sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+echo "deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$CRIO_VERSION/$OS/ /"|sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$CRIO_VERSION.list
+curl -L https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$CRIO_VERSION/$OS/Release.key | sudo apt-key add -
+curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | sudo apt-key add -
+apt update
+apt install cri-o cri-o-runc cri-tools -y
+systemctl enable --now crio.service
+
+#Install Kubelet, Kubeadm, and Kubectl
+curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update
+apt-get install -y kubelet kubeadm kubectl
+
+#Install Kubernetes
+#Default pod network is 192.168.0.0/16 - Change if it conflicts like I did
+kubeadm init --pod-network-cidr=192.168.100.0/16
+
+#Install Container Network Interface (CNI) - Calico
+#Modify Line 4223 of calico.yaml if you used a non-default pod network cidr
+#Example: value: "192.168.100.0/16"
+kubectl apply -f k8s/calico.yaml
+
+#Install MetalLB - Load Balancer for Bare Metal installs
+#Modify line 20 of metallb-deploy.yaml to match the local IP of your server
+#Example: 20: 192.168.50.88-192.168.50.88
+kubectl apply -f k8s/metallb-deploy.yaml
+
+#Deploy Ingress-nginx
+kubeactl apply -f k8s/ingress-nginx-deploy.yaml
+
+#Deploy hello-openshift to test
+#You will need DNS setup for this to work
+kubectl apply -f k8s/hello-openshift.yaml
