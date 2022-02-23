@@ -8,6 +8,12 @@ RUN dnf install -y httpd --nodocs --setopt install_weak_deps=False && \
 # Copy the website
 COPY files/* /var/www/html/
 
+# Configure httpd to run as non-root
+RUN sed -i -e 's/root/1001/g' /usr/lib/tmpfiles.d/httpd.conf && \
+    sed -i -e 's/apache/1001/g' /usr/lib/tmpfiles.d/httpd.conf && \
+    chown -R 1001 /var/log/httpd && \
+    chmod u+s /usr/sbin/httpd
+
 # Expose port 80/tcp
 EXPOSE 80
 
