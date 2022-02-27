@@ -17,9 +17,35 @@ echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https:/
 sudo apt-get update
 apt-get install -y kubelet kubeadm kubectl
 
+#Disabling Swap for Kubernetes Install
+sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+swapoff -a
+
+#Enabling Kernel Modules for overlay and br_netfilter
+modprobe br_netfilter > /dev/null 2>&1
+
+#sysctl settings required for Kubernetes Install"
+
+tee /etc/sysctl.d/kubernetes.conf<<EOF
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+EOF
+
+#Reload sysctl
+sysctl --system > /dev/null 2>&1
+
 #Install Kubernetes
 #Default pod network is 192.168.0.0/16 - Change if it conflicts like I did
 kubeadm init --pod-network-cidr=192.168.100.0/16
+
+#Creating .kube folder, copy kubeconfig, and add var to .bash_profile
+mkdir -p $HOME/.kube
+cp -i /etc/kubernetes/admin.conf $HOME/.kube/conf
+tee $HOME/.bash_rc<<EOF
+export KUBECONFIG=$HOME/.kube/conf
+EOF
+source $HOME/.bash_profile
 
 #Install Container Network Interface (CNI) - Calico
 #Modify Line 4223 of calico.yaml if you used a non-default pod network cidr
@@ -31,8 +57,11 @@ kubectl apply -f k8s/calico.yaml
 #Example: 20: 192.168.50.88-192.168.50.88
 kubectl apply -f k8s/metallb-deploy.yaml
 
+#Remove Master taint from all nodes
+kubectl taint nodes --all node-role.kubernetes.io/master-
+
 #Deploy Ingress-nginx
-kubeactl apply -f k8s/ingress-nginx-deploy.yaml
+kubectl apply -f k8s/ingress-nginx-deploy.yaml
 
 #Deploy hello-openshift to test
 #You will need DNS setup for this to work
