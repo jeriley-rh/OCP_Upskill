@@ -45,19 +45,21 @@ kubeadm init
 #Creating .kube folder, copy kubeconfig, and add var to .bash_profile
 mkdir -p $HOME/.kube
 cp -i /etc/kubernetes/admin.conf $HOME/.kube/conf
-echo "export KUBECONFIG=$HOME/.kube/conf >> $HOME/.bashrc"
+echo "export KUBECONFIG=$HOME/.kube/conf" >> $HOME/.bashrc
 source $HOME/.bashrc
 
 #Install Container Network Interface (CNI) - Calico
 kubectl apply -f k8s/calico.yaml
+kubectl wait --for=condition=ready pod -l k8s-app=calico-node -n kube-system
+
+#Remove Master taint from all nodes
+kubectl taint nodes --all node-role.kubernetes.io/master-
 
 #Install MetalLB - Load Balancer for Bare Metal installs
 #Modify line 20 of metallb-deploy.yaml to match the local IP of your server
 #Example: 20: 192.168.50.88-192.168.50.88
 kubectl apply -f k8s/metallb-deploy.yaml
-
-#Remove Master taint from all nodes
-kubectl taint nodes --all node-role.kubernetes.io/master-
+kubectl wait --for=condition=ready pod -l app=metallb -n metallb-system
 
 #Deploy Ingress-nginx
 kubectl apply -f k8s/ingress-nginx-deploy.yaml
