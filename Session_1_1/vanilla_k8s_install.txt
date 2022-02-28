@@ -21,8 +21,11 @@ apt-get install -y kubelet kubeadm kubectl
 sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 swapoff -a
 
-#Enabling Kernel Modules for overlay and br_netfilter
-modprobe br_netfilter > /dev/null 2>&1
+modprobe br_netfilter
+
+cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+br_netfilter
+EOF
 
 #sysctl settings required for Kubernetes Install"
 
@@ -37,19 +40,15 @@ sysctl --system > /dev/null 2>&1
 
 #Install Kubernetes
 #Default pod network is 192.168.0.0/16 - Change if it conflicts like I did
-kubeadm init --pod-network-cidr=192.168.100.0/16
+kubeadm init
 
 #Creating .kube folder, copy kubeconfig, and add var to .bash_profile
 mkdir -p $HOME/.kube
 cp -i /etc/kubernetes/admin.conf $HOME/.kube/conf
-tee $HOME/.bash_rc<<EOF
-export KUBECONFIG=$HOME/.kube/conf
-EOF
-source $HOME/.bash_profile
+echo "export KUBECONFIG=$HOME/.kube/conf >> $HOME/.bashrc"
+source $HOME/.bashrc
 
 #Install Container Network Interface (CNI) - Calico
-#Modify Line 4223 of calico.yaml if you used a non-default pod network cidr
-#Example: value: "192.168.100.0/16"
 kubectl apply -f k8s/calico.yaml
 
 #Install MetalLB - Load Balancer for Bare Metal installs

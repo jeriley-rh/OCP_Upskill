@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocpupskill-deployment
+  labels:
+    app: ocpupskill
+spec:
+  # this value goes away - we don't need to explicitly set the number of replicas anymore!
+  # replicas: 3 
+  selector:
+    matchLabels:
+      app: ocpupskill
+  template:
+    metadata:
+      labels:
+        app: ocpupskill
+    spec:
+      containers:
+      - name: ocpupskill
+        image: quay.io/mpeterma/ocpupskill:1.0
+        ports:
+        - containerPort: 80
+        resources:
+          # You need to specify the metric the HPA object will reference
+          limits:
+            cpu: 200m
+            memory: 500Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
